@@ -12,7 +12,6 @@ import PySimpleGUI as sg
 disable_warnings()
 
 # global variables
-
 api_key = 'RGAPI-592fc2b3-7180-48e3-af7d-ac97d10107d6'
 
 app_port = None
@@ -24,8 +23,6 @@ lcu_name = None   # LeagueClientUx executable name
 inChampSelect = False
 
 # functions
-
-
 def getLCUName():
     '''
     Get LeagueClient executable name depending on platform.
@@ -75,11 +72,9 @@ connector = Connector()
 
 
 async def connect(connection):
-    
     global inChampSelect
 
     getLCUName()
-
     getLCUArguments()
     
     lcu_api = 'https://127.0.0.1:' + app_port
@@ -114,21 +109,47 @@ async def connect(connection):
     sg.theme('DarkBlue')   
 
     layout = [[sg.Text(f'Connected: {r["displayName"]}... Welcome to NameReveal')],
-                [sg.Button('Reveal Names')],
+                [sg.Button('Reveal Names')], 
+                [sg.InputText(key='role')], [sg.Button('Get Role')],
                 [[sg.Multiline(size=(60,15), font='Courier 8', expand_x=True, expand_y=True, write_only=True,
                                     reroute_stdout=True, reroute_stderr=True, echo_stdout_stderr=True, autoscroll=True, auto_refresh=True)]]
                                     ]
     
     window = sg.Window('LolNameReveal', layout, finalize=True)
     
+    get_champ_select = lcu_api + '/lol-champ-select/v1/session'
+                
     while True:
         participants = []    
         event, values = window.read()
         if event == sg.WIN_CLOSED or event == 'Cancel': # if user closes window or clicks cancel
             break
+        elif event == 'Get Role':
+            try:
+                r = requests.get(get_champ_select, headers=lcu_headers, verify=False)
+                r = json.loads(r.text)
+                if 'errorCode' not in r:
+                    role = values['role']
+                    r = requests.get(lcu_api + "/lol-chat/v1/conversations", headers=lcu_headers, verify=False)
+                    r = r.json()
+                    # in a champ select, find lobby
+                    message = {'type': "groupchat", 'body': role}
+                    id = r[0]['id']
+                    r = f'/lol-chat/v1/conversations/{id}/messages'
+                    headers = {'Content-type': 'application/json'}
+
+                    for _ in range(3):
+                        await connection.request('post', r, data=message, headers=headers)
+                        sleep(0.1)
+
+                else:
+                    print("NOT IN CHAMP SELECT")
+                    sleep(0.2)
+            except:
+                sys.exit(0)
+
         elif event == 'Reveal Names':
             try:
-                get_champ_select = lcu_api + '/lol-champ-select/v1/session'
                 r = requests.get(get_champ_select, headers=lcu_headers, verify=False)
                 r = json.loads(r.text)
                 if 'errorCode' in r:
@@ -136,18 +157,16 @@ async def connect(connection):
 
                 else:
                     print("* Getting Participants *")
-                    sleep(1)
                     try:
                         get_lobby = riotclient_api + '/chat/v5/participants/champ-select'
                         r = requests.get(get_lobby, headers=riotclient_headers, verify=False)
                         r = json.loads(r.text)
                         for i in r['participants']:
                             participants.append(i['name'])
+                        sleep(0.5)
                         print("Your team: ")
-                        print("-----------------------")
-                        
-                        for i in participants:
-                            print(i)                            
+
+                        print(' '.join(participants))                          
                         
                     except:
                         sys.exit(0)
@@ -155,7 +174,5 @@ async def connect(connection):
             except:
                 print('*Error Exiting... *')
                 sys.exit(0)
-
-   
 
 connector.start()
