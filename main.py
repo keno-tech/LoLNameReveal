@@ -110,7 +110,7 @@ async def connect(connection):
 
     layout = [[sg.Text(f'Connected: {r["displayName"]}... Welcome to NameReveal')],
                 [sg.Button('Reveal Names')], 
-                [sg.InputText(key='role')], [sg.Button('Get Role')],
+                [sg.InputText(key='role')], [sg.Button('Send Message')],
                 [[sg.Multiline(size=(60,15), font='Courier 8', expand_x=True, expand_y=True, write_only=True,
                                     reroute_stdout=True, reroute_stderr=True, echo_stdout_stderr=True, autoscroll=True, auto_refresh=True)]]
                                     ]
@@ -124,7 +124,7 @@ async def connect(connection):
         event, values = window.read()
         if event == sg.WIN_CLOSED or event == 'Cancel': # if user closes window or clicks cancel
             break
-        elif event == 'Get Role':
+        elif event == 'Send Message':
             try:
                 r = requests.get(get_champ_select, headers=lcu_headers, verify=False)
                 r = json.loads(r.text)
@@ -134,13 +134,20 @@ async def connect(connection):
                     r = r.json()
                     # in a champ select, find lobby
                     message = {'type': "groupchat", 'body': role}
-                    id = r[0]['id']
-                    r = f'/lol-chat/v1/conversations/{id}/messages'
-                    headers = {'Content-type': 'application/json'}
+                    
+                    for i in r:
+                        if i['type'] == 'championSelect':
+                            try:
+                                id = i['id']
+                                print(id)
+                                r = f'/lol-chat/v1/conversations/{id}/messages'
+                                headers = {'Content-type': 'application/json'}
 
-                    for _ in range(3):
-                        await connection.request('post', r, data=message, headers=headers)
-                        sleep(0.1)
+                                for _ in range(3):
+                                    await connection.request('post', r, data=message, headers=headers)
+                                    sleep(0.1)
+                            except:
+                                print("ERROR")
 
                 else:
                     print("NOT IN CHAMP SELECT")
