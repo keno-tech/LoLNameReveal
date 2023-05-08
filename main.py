@@ -8,6 +8,7 @@ import psutil
 import base64
 from lcu_driver import Connector
 import PySimpleGUI as sg
+import webbrowser
 
 disable_warnings()
 
@@ -22,6 +23,7 @@ region = None
 lcu_name = None   # LeagueClientUx executable name
 inChampSelect = False
 
+region_map = {'oc1': 'oce'}
 # functions
 def getLCUName():
     '''
@@ -109,8 +111,8 @@ async def connect(connection):
     sg.theme('DarkBlue')   
 
     layout = [[sg.Text(f'Connected: {r["displayName"]}... Welcome to NameReveal')],
-                [sg.Button('Reveal Names')], 
-                [sg.InputText(key='role')], [sg.Button('Send Message')],
+                [sg.Button('Reveal Names'), sg.Button('OPGG')], 
+                [sg.InputText(key='role'), sg.Button('Send Message')],
                 [[sg.Multiline(size=(60,15), font='Courier 8', expand_x=True, expand_y=True, write_only=True,
                                     reroute_stdout=True, reroute_stderr=True, echo_stdout_stderr=True, autoscroll=True, auto_refresh=True)]]
                                     ]
@@ -139,10 +141,9 @@ async def connect(connection):
                         if i['type'] == 'championSelect':
                             try:
                                 id = i['id']
-                                print(id)
                                 r = f'/lol-chat/v1/conversations/{id}/messages'
                                 headers = {'Content-type': 'application/json'}
-
+                                
                                 for _ in range(3):
                                     await connection.request('post', r, data=message, headers=headers)
                                     sleep(0.1)
@@ -173,7 +174,17 @@ async def connect(connection):
                         sleep(0.5)
                         print("Your team: ")
 
-                        print(' '.join(participants))                          
+                        print('/'.join(participants))
+                        one = participants[0]
+                        two = participants[1]
+                        three = participants[2]
+                        four = participants[3]
+                        five = participants[4]
+                        
+                        if region not in region_map:
+                            print("region not in mapping")
+                        global opgg
+                        opgg = f'https://www.op.gg/multisearch/{region_map[region]}?summoners={one},%20{two},%20{three},%20{four},%20{five}'
                         
                     except:
                         sys.exit(0)
@@ -181,5 +192,11 @@ async def connect(connection):
             except:
                 print('*Error Exiting... *')
                 sys.exit(0)
+
+        elif event == "OPGG":
+            try:
+                webbrowser.open_new_tab(opgg)
+            except:
+                print("ERROR")
 
 connector.start()
